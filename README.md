@@ -1,6 +1,8 @@
 # UVP Tools
 
-A set of utility functions for managing Python virtual environments using `uv`. These tools provide a streamlined workflow for creating, activating, and managing multiple project environments.
+uvp is a uv-based (mini) project management suite focused thought not limited to lightweight Python projects.
+
+Think "I want to create and experiment with a quick Python tool with a few dependencies. A full project setup seems overblown for what I need."
 
 ## Environment Variables
 
