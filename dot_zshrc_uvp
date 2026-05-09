@@ -1,0 +1,290 @@
+#
+# uv tools
+#
+export UVP_PROJECTS_DIR="$HOME/tmp/uvp-projects"
+export UVP_DEFAULT_PYTHON_VERSION="3.15"
+export UVP_VIRTUAL_ENV_DISABLE_PROMPT='true'
+export _UVP_VENV_ACTIVE="FALSE"
+export UVP_DESCRIPTION_FILE="uvp_description.txt"
+
+# _zg_doc "utils:: uvp_is_installed : Is the 'uv' command installed?"
+function uvp_is_installed() {
+  if ! command -v uv &> /dev/null; then
+    echo "false"
+    echo "uv is not installed. Leaving ..." >&2
+    return 1
+  else
+    echo "true"
+    return 0
+  fi
+}
+
+# _zg_doc "utils:: uvp_venv_is_present : Is the uv '.venv' present?"
+function uvp_venv_is_present() {
+  if [[ -d .venv ]]; then
+    echo "true"
+    return 0
+  else
+    echo "false"
+    # echo "uv venv not found" >&2
+    return 1
+  fi
+}
+
+# _zg_doc "utils:: uvp_projects_dir_is_present : Is UVP_PROJECTS_DIR present?"
+function uvp_projects_dir_is_present() {
+  if [[ -d "$UVP_PROJECTS_DIR" ]]; then
+    echo "true"
+    return 0
+  else
+    echo "false"
+    echo "Environments directory not found: $UVP_PROJECTS_DIR" >&2
+    return 1
+  fi
+}
+
+## Pattern
+# function uvxxx() {
+#   # set -x#   local verbose=""
+#   if [[ -n "$1" && "$1" == "-v" ]]; then verbose="true"; fi
+#   if [[ "$verbose" == "true" ]]; then echo "checking for uv"; fi
+#   if [[ $(uvp_is_installed) == "false" ]]; then return 1; fi
+#   if [[ "$verbose" == "true" ]]; then echo "checking for venv"; fi
+#   if [[ $(uvp_venv_is_present) == "false" ]]; then return 1; fi
+#   echo "source .venv/bin/activate &>/dev/null"
+#   # set +x
+# }
+
+# _zg_doc "utils:: uvpa : Activate the current uv environment"
+function uvpa() {
+  if [[ $(uvp_is_installed) == "false" ]]; then return 1; fi
+  if [[ $(uvp_venv_is_present) == "false" ]]; then return 1; fi
+  if [[ -f .venv/bin/activate ]]; then
+    source .venv/bin/activate 
+  else
+    echo "Error: No virtual environment found in $(pwd)" >&2
+    return
+  fi
+}
+
+# _zg_doc "utils:: uvpd : Deactivate the current uv environment"
+function uvpd() {
+  if [[ $(uvp_is_installed) == "false" ]]; then return 1; fi
+  if [[ $(uvp_venv_is_present) == "false" ]]; then return 1; fi 
+  if [[ -n "$VIRTUAL_ENV" ]]; then
+    deactivate &>/dev/null
+  fi
+}
+
+# _zg_doc "utils:: uvpn : Create a new uv environment"
+function uvpn() {
+  local dt_stamp=$(date "+%Y%m%d_%H%M%S")
+  local base_dir="$UVP_PROJECTS_DIR"
+  local uvp_env_name
+  local python_version
+
+  if [[ $(uvp_is_installed) == "false" ]]; then return 1; fi
+  if [[ $(uvp_venv_is_present) == "true" ]]; then echo "This looks like an existing uv/uvp project with a .venv defined already." ; return 1; fi
+
+  if [[ -n "$1" ]]; then
+    uvp_env_name="$base_dir/$1"
+    shift
+  else
+    uvp_env_name="$base_dir/$dt_stamp"  
+  fi
+
+  # check for existing env with the same name
+  if [[ -d "$uvp_env_name" ]]; then
+    echo "Error: Environment '$1' already exists." >&2
+    return 1
+  fi
+
+  # Create a new uv environment with the given name
+  mkdir -p $uvp_env_name || { echo "Failed to create directory"; return 1; }
+  cd "$uvp_env_name" || return 1
+
+  if [[ -n "$1" ]]; then
+    python_version="$1"
+  else
+    python_version="$UVP_DEFAULT_PYTHON_VERSION"
+  fi
+
+  uv init --python=python${python_version} &>/dev/null || { echo "uv init failed"; return 1; }
+  uv venv .venv --python=python${python_version} &>/dev/null || { echo "uv venv failed"; return 1; }
+
+  uvpa
+
+  local default_description="Please update $UVP_DESCRIPTION_FILE for other uvp tools" 
+  echo "$default_description" > $UVP_DESCRIPTION_FILE
+  echo "uv env ($python_version:$uvp_env_name) -- \"$default_description\""
+}
+
+# _zg_doc "utils:: uvplast : Get the most recently created uv environment"
+function uvplast() {
+  if [[ $(uvp_is_installed) == "false" ]]; then return 1; fi
+  if [[ ! -d "$UVP_PROJECTS_DIR" ]]; then echo "UVP_PROJECTS_DIR is not configured" ; return 1; fi
+
+  local last_env=$(ls -1dt $UVP_PROJECTS_DIR/*/ | head -n 1)
+  if [[ -z "$last_env" ]]; then echo "Error: No environments found in $UVP_PROJECTS_DIR" >&2 ; return 1 ; fi
+  cd $last_env
+ 
+  uvpa
+}
+
+# _zg_doc "utils:: uvpls : List all uv environments"
+function uvpls() {
+  if [[ $(uvp_projects_dir_is_present) == "false" ]]; then return 1; fi
+
+  local list_option=${1:-}
+  
+  local count=0
+  for uvdir in $(ls -1d $UVP_PROJECTS_DIR/*/); do
+    local dir_name=$(basename "$uvdir")
+    local msg="  $dir_name"
+    if [[ "$list_option" == "-l" ]]; then
+      local msg="  $dir_name ($uvdir)"
+    fi
+    if [[ -f $uvdir/$UVP_DESCRIPTION_FILE ]]; then
+      local desc=$(cat $uvdir/$UVP_DESCRIPTION_FILE)
+      msg="$msg: $desc"
+    fi
+    echo "$msg"
+    count=$((count + 1))
+  done
+
+  if [[ $count -eq 0 ]]; then
+    echo "No environments found in $UVP_PROJECTS_DIR" >&2 ; return 1
+  fi
+  return 0    
+}
+
+# _zg_doc "utils:: uvpgo : Go to a specific uv environment"
+function uvpgo() {
+  if [[ $(uvp_projects_dir_is_present) == "false" ]]; then return 1; fi
+
+  local last_env=$(ls -1dt $UVP_PROJECTS_DIR/*/ | head -n 1)
+
+  if [[ -n "$1" ]]; then
+    local target_env="$UVP_PROJECTS_DIR/$1"
+    if [[ -d "$target_env" ]]; then
+      cd $target_env || return 1
+      uvpa
+    else
+      echo "Environment $1 does not exist in $UVP_PROJECTS_DIR." >&2
+    fi
+  elif [[ -n "$last_env" ]]; then
+      cd "$last_env" || { echo "Failed to change directory to $last_env" >&2; return 1; }
+      uvpa
+  else
+      echo "Error: No environments found in $UVP_PROJECTS_DIR" >&2
+      return 1
+  fi
+}
+
+# _zg_doc "utils:: uvprm : Remove a specific uv environment or the most recent one"
+function uvprm() {
+  if [[ $(uvp_projects_dir_is_present) == "false" ]]; then return 1; fi
+
+  local last_env=$(ls -1dt $UVP_PROJECTS_DIR/*/ | head -n 1)
+  if [[ -z "$last_env" ]]; then
+    echo "Error: No environments found in $UVP_PROJECTS_DIR" >&2
+    return 1
+  fi
+
+  local active_dir="$(pwd)"
+
+  if [[ -n "$1" ]]; then
+    local target_env="$UVP_PROJECTS_DIR/$1"
+    if [[ -d "$target_env" ]]; then
+      echo "Removing environment: $(basename "$target_env")"
+      rm -rf $target_env
+      echo "Environment $1 removed from $UVP_PROJECTS_DIR."
+      if [[ "$local active_dir" == "$target_env" ]]; then
+        cd "$UVP_PROJECTS_DIR" &> /dev/null
+      fi
+    fi
+  else
+    echo "Removing most recent environment: $(basename "$last_env")"
+    # read -p "Confirm? [y/N] " confirm. - Not legal in ZSH -p requests input from a coprocess.
+    read "confirm?Confirm? [y/N] "
+    if [[ "$confirm" =~ ^[Yy]$ ]]; then
+      rm -rf "$last_env"
+      if [[ "$local active_dir" == $last_env ]]; then
+        cd "$UVP_PROJECTS_DIR" &> /dev/null
+      fi
+      echo "Removed most recent environment."
+    else
+      echo "Aborted removal of $(basename "$last_env")"
+    fi
+  fi
+      
+  cd "$UVP_PROJECTS_DIR" &> /dev/null
+}
+
+# _zg_doc "utils:: uvplock : Lock the current uv environment"
+function uvpl() {
+  uv lock ${@:1}
+}
+
+# _zg_doc "utils:: uvpp : Create a new uv environment for the current project"
+function uvpp() {
+  # Check for existing .venv or pyproject.toml
+  if [[ -d .venv ]] || [[ -f pyproject.toml ]]; then
+    echo "Virtual environment already exists in $(pwd). Using 'uvpa' to activate."
+    uvpa
+    return 0 
+  fi
+
+  if [[ -n "$1" ]]; then
+    python_version="$1"
+  else
+    python_version="$UVP_DEFAULT_PYTHON_VERSION"
+  fi  
+  uv init --python=python${python_version} &>/dev/null || { echo "uv init failed"; return 1; }
+  uv venv .venv --python=python${python_version} &>/dev/null || { echo "uv venv failed"; return 1; }
+  if [[ ! -f $UVP_DESCRIPTION_FILE ]]; then
+    local default_description="Please update $UVP_DESCRIPTION_FILE for other uvp tools" 
+    echo "$default_description" > "$UVP_DESCRIPTION_FILE"
+    echo "Created: project env -- \"$default_description\"" 
+  fi
+
+  return 0 
+}
+
+# _zg_doc "utils:: uvpstatus : Show status of current uv environment"
+function uvpstatus() {
+    if [[ -n "$VIRTUAL_ENV" ]]; then
+        echo "Active virtual env: $VIRTUAL_ENV"
+        if [[ -d pyproject.toml ]] || [[ -f pyproject.toml ]]; then
+            echo "Project directory: $(pwd)"
+        fi
+        if [[ -f lock.toml ]] || [[ -f uv.lock ]]; then
+            echo "Lock file present"
+        fi
+        if [[ "$_UVP_VENV_ACTIVE" == "TRUE" ]]; then
+            echo "Managed by zsh uvp functions"
+        fi
+    else
+        echo "No virtual environment active."
+        echo "Use 'uvpa' to activate current directory's env, or 'uvpn [name]' to create new one."
+    fi
+}
+
+# _zg_doc "utils:: uvphelp : Show help for uvp environment management functions"
+function uvphelp() {
+  echo "uvp is a uv-based (mini) project management suite"
+  echo "uvp_is_installed - Check if the 'uv' command is installed (returns true/false)"
+  echo "uvp_venv_is_present - Check if '.venv' directory exists in current directory"
+  echo "uvp_projects_dir_is_present - Check if UVP_PROJECTS_DIR exists"
+  echo "uvpn [env_name] [python_version] - Create a new uv environment with an optional name and Python version (default: $UVP_DEFAULT_PYTHON_VERSION)"
+  echo "uvplast - Get the most recently created uv environment"
+  echo "uvpls - List all uv environments"
+  echo "uvpgo [env_name] - Go to a specific uv environment or the most recent one if no argument is given"
+  echo "uvprm [env_name] - Remove a specific uv environment or the most recent one if no argument is given"
+  echo "uvpl [options] - Lock the current uv environment with optional arguments for uv lock"
+  echo "uvpp [python_version] - Create a new uv environment for the current project with an optional Python version (default: $UVP_DEFAULT_PYTHON_VERSION)"
+  echo "uvpa - Activate the current uv environment"
+  echo "uvpd - Deactivate the current uv environment"
+  echo "uvpstatus - Show status of current uv environment"
+  echo "uvphelp - Show this help message"
+}
