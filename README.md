@@ -22,6 +22,12 @@ Add the following to your shell configuration file (e.g., `.zshrc`):
 source ~/.zshrc_uvp
 ```
 
+### Note on chpwd functionality.
+
+The uvp framework uses the function the uvp_chpwd function to change the prompt when a uv venv is active and remove it when not.
+
+By default, a version of the 'chpwd' function is included with just calls 'uvp_chpwd'. If this conflicts with how other framemorks use 'chpwd', use whatever version you need, and just remember to call 'uvp_chpwd' at the end of 'chpwd'.
+
 ## Functions
 
 ### `uvp_is_installed`
@@ -63,6 +69,9 @@ Deactivate the currently active virtual environment.
 ### `uvpstatus`
 Show the status of the current uv environment, including whether a venv is active and how it was managed.
 
+### `uvp_chpwd`
+If a venv enviroment is active, change the prompt to contain \"(uvp:pPYTHON_VERSION)\". Hooks into chpwd to change on entering/exiting relevant directories. 
+
 ### `uvphelp`
 Display help information for all uvp functions.
 
@@ -90,6 +99,9 @@ uvpl
 
 # Check status
 uvpstatus
+
+# Set/unset uvp venv prompt information
+uvp_chpwd
 ```
 
 ## Notes

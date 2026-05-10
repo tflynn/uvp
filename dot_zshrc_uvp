@@ -277,7 +277,8 @@ function uvpstatus() {
     fi
 }
 
-chpwd() {
+# _zg_doc "utils:: uvp_chpwd : Hook for chpwd. Manages venv information in prompt."
+uvp_chpwd() {
   if [[ -d "$PWD/.venv" && -z "$VIRTUAL_ENV" ]]; then
     uvpa
   fi
@@ -289,6 +290,10 @@ chpwd() {
       uvpd
     fi
   fi
+}
+
+chpwd() {
+  uvp_chpwd
 }
 
 # _zg_doc "utils:: uvphelp : Show help for uvp environment management functions"
@@ -306,6 +311,7 @@ function uvphelp() {
   echo "uvpp [python_version] - Create a new uv environment for the current project with an optional Python version (default: $UVP_DEFAULT_PYTHON_VERSION)"
   echo "uvpa - Activate the current uv environment"
   echo "uvpd - Deactivate the current uv environment"
+  echo "uvp_chpwd - Hook for chpwd. Manages venv information in prompt."
   echo "uvpstatus - Show status of current uv environment"
   echo "uvphelp - Show this help message"
 }
