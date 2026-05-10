@@ -7,7 +7,7 @@ Think "I want to create and experiment with a quick Python tool with a few depen
 ## Environment Variables
 
 - `UVP_PROJECTS_DIR` - Directory where uv environments are stored (default: `$HOME/tmp/uvp-projects`)
-- `UVP_DEFAULT_PYTHON_VERSION` - Default Python version for new environments (default: 3.15)
+- `UVP_DEFAULT_PYTHON_VERSION` - Default Python version for new environments (default: 3.14)
 - `UVP_DESCRIPTION_FILE` - File used to store environment descriptions
 
 ## Installation

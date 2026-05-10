@@ -2,10 +2,11 @@
 # uv tools
 #
 export UVP_PROJECTS_DIR="$HOME/tmp/uvp-projects"
-export UVP_DEFAULT_PYTHON_VERSION="3.15"
+export UVP_DEFAULT_PYTHON_VERSION="3.14"
 export UVP_VIRTUAL_ENV_DISABLE_PROMPT='true'
 export _UVP_VENV_ACTIVE="FALSE"
 export UVP_DESCRIPTION_FILE="uvp_description.txt"
+export _UVP_VENV_RENAME="TRUE"
 
 # _zg_doc "utils:: uvp_is_installed : Is the 'uv' command installed?"
 function uvp_is_installed() {
@@ -60,7 +61,11 @@ function uvpa() {
   if [[ $(uvp_is_installed) == "false" ]]; then return 1; fi
   if [[ $(uvp_venv_is_present) == "false" ]]; then return 1; fi
   if [[ -f .venv/bin/activate ]]; then
-    source .venv/bin/activate 
+    source .venv/bin/activate
+    if [[ "$_UVP_VENV_RENAME" == "TRUE" ]]; then
+      local python_version_string="p$(grep 'version_info' .venv/pyvenv.cfg | cut -d' ' -f3)"
+      export PS1=${PS1/.venv/uvp:${python_version_string}}
+    fi  
   else
     echo "Error: No virtual environment found in $(pwd)" >&2
     return
@@ -70,9 +75,11 @@ function uvpa() {
 # _zg_doc "utils:: uvpd : Deactivate the current uv environment"
 function uvpd() {
   if [[ $(uvp_is_installed) == "false" ]]; then return 1; fi
-  if [[ $(uvp_venv_is_present) == "false" ]]; then return 1; fi 
-  if [[ -n "$VIRTUAL_ENV" ]]; then
-    deactivate &>/dev/null
+  local project_root=${VIRTUAL_ENV%/*}
+  if [[ -n $project_root ]]; then
+    if [[ "$PWD" == "$project_root" || "$PWD" != "$project_root"* ]]; then
+      deactivate &>/dev/null
+    fi
   fi
 }
 
@@ -268,6 +275,20 @@ function uvpstatus() {
         echo "No virtual environment active."
         echo "Use 'uvpa' to activate current directory's env, or 'uvpn [name]' to create new one."
     fi
+}
+
+chpwd() {
+  if [[ -d "$PWD/.venv" && -z "$VIRTUAL_ENV" ]]; then
+    uvpa
+  fi
+  # If the working directory does not start with the project root,
+  # then deactivate the venv.
+  local project_root=${VIRTUAL_ENV%/*}
+  if [[ -n $project_root ]]; then
+    if [[ "$PWD" != "$project_root"* ]]; then
+      uvpd
+    fi
+  fi
 }
 
 # _zg_doc "utils:: uvphelp : Show help for uvp environment management functions"
