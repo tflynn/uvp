@@ -26,7 +26,7 @@ source ~/.zshrc_uvp
 
 The uvp framework uses the function the uvp_chpwd function to change the prompt when a uv venv is active and remove it when not.
 
-By default, a version of the 'chpwd' function is included with just calls 'uvp_chpwd'. If this conflicts with how other framemorks use 'chpwd', use whatever version you need, and just remember to call 'uvp_chpwd' at the end of 'chpwd'.
+By default, a version of the 'chpwd' function is included with a single call to 'uvp_chpwd'. If this conflicts with how other framemorks use 'chpwd', use whatever version you need, and just remember to call 'uvp_chpwd' at the end of 'chpwd'.
 
 ## Functions
 
